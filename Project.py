@@ -181,7 +181,7 @@ def histogram_image_zoomed(image, plot=True):
     return hist
 
 
-histogram_image_zoomed(images_gray["001.bmp"])
+histogram_image_zoomed(images_gray["004.bmp"])
 
 
 # %%
@@ -282,31 +282,73 @@ def histogram_image_zoomed_bspline2(image, degree, s, plot=True):
     
     
 #%%
-
-for filename, image in images_gray.items():
-    print(filename)
-    histogram_image_zoomed_bspline2(images_gray[filename], 2, 25000)
-    print("################################")
-
-
-
-#%%
-
 local_extremes = {}
 for filename, image in images_gray.items():
     xc, xc1 = histogram_image_zoomed_bspline2(images_gray[filename], 2, 25000, plot = False)
     local_extremes[filename] = (xc, xc1)
+
+#%%
+
+keys_to_keep = ['001.bmp', '002.bmp', '003.bmp', '004.bmp', '005.bmp', '006.bmp', '007.bmp', '008.bmp', '009.bmp', '010.bmp']
+
+keys_to_keep = ["007.bmp"]
+
+first_10_images = {key: images_gray[key] for key in keys_to_keep if key in images_gray}
+
+print(first_10_images)
+
 #%% conditions for et
 
-for filename, image in images_gray.items():
+for filename, image in first_10_images.items():
     Tnco_i = Tncos[filename]
     max_local_i = local_extremes[filename][0]
     min_local_i = local_extremes[filename][1]
     
-    diff = (Tnco_i - min_local_i)
-    print(diff)
+    print("Tnco:", Tnco_i, ", Min:", min_local_i, ", Max: ", max_local_i)
     
-    #if max_local_i < Tnco_i:
+    diff = np.abs(Tnco_i - min_local_i)
+    print("Diff: ", diff)
+    
+    Ers = np.linspace(0.12, 0.18, 30)
+    
+    for Er in Ers:
+    
+        if max_local_i < Tnco_i:
+            th = Tnco_i
+        if (np.abs(Tnco_i) - min_local_i) < Er:
+            th = (Tnco_i + min_local_i)/2
+        if (np.abs(Tnco_i) - min_local_i) > Er:
+            if Tnco_i > min_local_i:
+                th = ((Tnco_i + min_local_i + Er)/2)
+            else:
+                th = ((Tnco_i + min_local_i - Er)/2)
         
+        diff = (Tnco_i - min_local_i)
+        print(th)
+        
+        w = image.shape[0]
+        h = image.shape[1]
+        im_new = image.copy()
+        for y in range(h):
+            for x in range(w):
+                pix = image[x,y]
+                if pix < th:
+                    i = image.min()
+                else:
+                    i = pix
+                
+                im_new[x,y] = i
+        
+    
+        plt.imshow(im_new, cmap = "gray")
+        plt.title("Image: " + str(filename) +  " Er:"  + str(Er))
+        plt.axis("off")
+        plt.show()
+
+plt.imshow(images_gray["007.bmp"], cmap = "gray")
+plt.axis("off")
+plt        
+        
+#%%
 
 
