@@ -203,6 +203,7 @@ def histogram_image_zoomed_bspline(image, degree, s, plot=True):
     
     idxc = np.argmax(spline_local)
     idxc1 = np.argmin(spline_local)
+
     
     xc = bins_local[idxc]
     xc1 = bins_local[idxc1]
@@ -212,8 +213,8 @@ def histogram_image_zoomed_bspline(image, degree, s, plot=True):
     if plot:
         plt.plot(bins_zoom, hist_zoom, color="blue", label="Histogram")
         plt.plot(bins_zoom_sp, spline(bins_zoom_sp), color="red", label='B-spline Approximation')
-        plt.axvline(x=xc, color='green', linestyle='--', label='Min value')
-        plt.axvline(x=xc1, color='purple', linestyle='--', label='Max value')
+        plt.axvline(x=xc, color='green', linestyle='--', label='Max value')
+        plt.axvline(x=xc1, color='purple', linestyle='--', label='Min value')
         plt.title('Histogram zoomed')
         plt.xlabel('Pixel Value')
         plt.ylabel('Frequency')
@@ -230,8 +231,18 @@ sp, xmax, xmin = histogram_image_zoomed_bspline(images_gray["004.bmp"], 2, 15000
 
 #%%
 
+min_list = []
+max_list = []
 for filename, image in images_gray.items():
-    histogram_image_zoomed_bspline(images_gray[filename], 2, 15000)
+    hist = histogram_image_zoomed_bspline(images_gray[filename], 2, 15000)
+    max_list.append(hist[1])
+    min_list.append(hist[2])
+    
+
+# %%
+# =============================================================================
+# Introduction of the parameter Er
+# =============================================================================
 
 # %%
 '''
@@ -265,9 +276,69 @@ plt.title('Thresholded image')
 plt.axis('off')   
 plt.show()
 
+# %% Imposing the conditions of thresholding as a function of Er factor: 
+# Capturing the threshold values
+keys_images_gray = list(images_gray.keys())
+values_images_gray = list(images_gray.values())
+thresholded_images = {}
+N1 = 2
+N2 = 2
+# Nse que pollas poner en el Er este dice que es para hacer el control del threshold
+Er = 0.01
+for i in range(len(values_images_gray)):
+    image = values_images_gray[i]
+    th_image = np.copy(image)
+    max_Im = image.max()
+    min_Im = image.min()
+    Tc0 = max_Im/N1 + min_Im/N2
+    
+    if Tc0 > max_list[i]:
+        if np.abs(Tc0-min_list[i])< Er :
+            Estimated_th = (Tc0+min_list[i])/2
+        elif (np.abs(Tc0-min_list[i])>Er) and (Tc0>min_list[i]):
+            Estimated_th = (Tc0+min_list[i]+Er)/2
+        elif (np.abs(Tc0-min_list[i])>Er) and (Tc0<min_list[i]):
+            Estimated_th = (Tc0+min_list[i]-Er)/2
+    else:
+        None
+    w = image.shape[0]
+    h = image.shape[1]
+    for y in range(h):
+        for x in range(w):
+            if image[x,y] < Estimated_th:
+                th_image[x,y] = min_Im
+            else: 
+                th_image[x,y] = image[x,y]
+    im_filled = ndimage.binary_fill_holes(th_image) # this fills all the holes of the nuclei segmented image
+    im_cleaned = morphology.opening(im_filled, morphology.square(7)) # this removes all the trash detected around the nucleus
+    thresholded_images[keys_images_gray[i]] = im_cleaned
+    
+ # Plotting the 1st thresholded image
+   
+im_001_thresholded = thresholded_images["001.bmp"]
+plt.imshow(im_001_thresholded, cmap= 'binary')
+plt.title('Thresholded image')
+plt.axis('off')   
+plt.show()
 
+# %% 
 
+# =============================================================================
+# Threshold estimation for WBCs segmentation
+# =============================================================================
 
+N1 = 2
+N2 = 2
+for i in range(len(values_images_gray)):
+    image = values_images_gray[i]
+    th_image = np.copy(image)
+    max_Im = image.max()
+    min_Im = image.min()
+    Tc0 = max_Im/N1 + min_Im/N2
+    for u in range(int(min_list[i]-max_list[i]/Er)):
+        
+                    
+    
 
 
 
