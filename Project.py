@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
 from scipy import interpolate
+from scipy import signal
 
 # %%
 # =============================================================================
@@ -125,7 +126,7 @@ plt.xlabel("n2")
 plt.ylabel("Υn2")
 plt.show()
 
-n1 = 4
+n1 = 2
 n2 = 4
 
 
@@ -205,6 +206,7 @@ def histogram_image_zoomed_bspline(image, degree, s, plot=True):
     
     idxc = np.argmax(spline_local)
     idxc1 = np.argmin(spline_local)
+   # if idcx1 == (len(spline_local) -1))
     
     xc = bins_local[idxc]
     xc1 = bins_local[idxc1]
@@ -234,5 +236,77 @@ sp, xmax, xmin = histogram_image_zoomed_bspline(images_gray["004.bmp"], 2, 15000
 
 for filename, image in images_gray.items():
     histogram_image_zoomed_bspline(images_gray[filename], 2, 15000)
+
+#%%
+
+local_extremes = {}
+for filename, image in images_gray.items():
+    sp, xc, xc1 = histogram_image_zoomed_bspline(images_gray[filename], 2, 15000, plot = False)
+    local_extremes[filename] = (xc, xc1)
     
+#%% improved version
+
+def histogram_image_zoomed_bspline2(image, degree, s, plot=True):
+    size = 256
+    hist = ndimage.histogram(image, 0, 1, size)
+    bins = np.linspace(0, 1, size)
+    
+    t, c, k = interpolate.splrep(bins, hist, k=degree, s = s)
+    spline = interpolate.BSpline(t, c, k, extrapolate=True)
+    spline_values = spline(bins)
+    
+    index1 = np.argmax(spline_values > 1)
+    index2 = np.uint8(256/2)
+    
+    idxc = np.argmax(spline_values[index1:index2])
+    maxima = bins[idxc + index1]
+    
+    not_finished = True
+    while not_finished:
+        idxc1 = np.argmin(spline_values[(idxc + index1):index2])
+        minima = bins[idxc1 + idxc + index1]
+        if idxc1 == (len(spline_values[idxc:index2]) -1):
+            print("In")
+            index2 = index2 + 10
+        else:
+            not_finished = False
+        
+    #print(maxima, minima)
+    plt.plot(bins[index1:index2+20], hist[index1:index2+20], color="blue", label="Histogram")
+    plt.plot(bins[index1:index2+20], spline_values[index1:index2+20], color="red", label='B-spline Approximation')
+    plt.axvline(x=maxima, color='green', linestyle='--', label='Max value')
+    plt.axvline(x=minima, color='blue', linestyle='--', label='Min value')
+    plt.show()
+    
+    return maxima, minima
+    
+    
+#%%
+
+for filename, image in images_gray.items():
+    print(filename)
+    histogram_image_zoomed_bspline2(images_gray[filename], 2, 25000)
+    print("################################")
+
+
+
+#%%
+
+local_extremes = {}
+for filename, image in images_gray.items():
+    xc, xc1 = histogram_image_zoomed_bspline2(images_gray[filename], 2, 25000, plot = False)
+    local_extremes[filename] = (xc, xc1)
+#%% conditions for et
+
+for filename, image in images_gray.items():
+    Tnco_i = Tncos[filename]
+    max_local_i = local_extremes[filename][0]
+    min_local_i = local_extremes[filename][1]
+    
+    diff = (Tnco_i - min_local_i)
+    print(diff)
+    
+    #if max_local_i < Tnco_i:
+        
+
 
