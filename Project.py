@@ -12,6 +12,7 @@ import numpy as np
 from scipy import ndimage
 from scipy import interpolate
 from scipy import signal
+from skimage import morphology
 
 # %%
 # =============================================================================
@@ -266,7 +267,7 @@ def histogram_image_zoomed_bspline2(image, degree, s, plot=True):
         idxc1 = np.argmin(spline_values[(idxc + index1):index2])
         minima = bins[idxc1 + idxc + index1]
         if idxc1 == (len(spline_values[idxc:index2]) -1):
-            print("In")
+            #print("In")
             index2 = index2 + 10
         else:
             not_finished = False
@@ -284,32 +285,33 @@ def histogram_image_zoomed_bspline2(image, degree, s, plot=True):
 #%%
 local_extremes = {}
 for filename, image in images_gray.items():
-    xc, xc1 = histogram_image_zoomed_bspline2(images_gray[filename], 2, 25000, plot = False)
+    xc, xc1 = histogram_image_zoomed_bspline2(images_gray[filename], 2, 45000, plot = False)
     local_extremes[filename] = (xc, xc1)
 
 #%%
 
 keys_to_keep = ['001.bmp', '002.bmp', '003.bmp', '004.bmp', '005.bmp', '006.bmp', '007.bmp', '008.bmp', '009.bmp', '010.bmp']
 
-keys_to_keep = ["007.bmp"]
+#keys_to_keep = ["007.bmp"]
 
 first_10_images = {key: images_gray[key] for key in keys_to_keep if key in images_gray}
 
-print(first_10_images)
 
 #%% conditions for et
+Ers_final = []
 
-for filename, image in first_10_images.items():
+for filename, image in images_gray.items():
     Tnco_i = Tncos[filename]
     max_local_i = local_extremes[filename][0]
     min_local_i = local_extremes[filename][1]
     
-    print("Tnco:", Tnco_i, ", Min:", min_local_i, ", Max: ", max_local_i)
+    print("Tnco:", Tnco_i, ", Min:", round(min_local_i,3), ", Max: ", round(max_local_i,3))
     
     diff = np.abs(Tnco_i - min_local_i)
-    print("Diff: ", diff)
+    print("Diff: ", round(diff,3))
     
-    Ers = np.linspace(0.12, 0.18, 30)
+    Ers = np.linspace(0.12, 0.18, 5)
+    #Ers_final = []
     
     for Er in Ers:
     
@@ -317,14 +319,16 @@ for filename, image in first_10_images.items():
             th = Tnco_i
         if (np.abs(Tnco_i) - min_local_i) < Er:
             th = (Tnco_i + min_local_i)/2
+            
         if (np.abs(Tnco_i) - min_local_i) > Er:
+            Er_final = Er
+            print("Er computation")
             if Tnco_i > min_local_i:
                 th = ((Tnco_i + min_local_i + Er)/2)
             else:
                 th = ((Tnco_i + min_local_i - Er)/2)
+            Ers_final.append(Er_final)
         
-        diff = (Tnco_i - min_local_i)
-        print(th)
         
         w = image.shape[0]
         h = image.shape[1]
@@ -341,14 +345,118 @@ for filename, image in first_10_images.items():
         
     
         plt.imshow(im_new, cmap = "gray")
-        plt.title("Image: " + str(filename) +  " Er:"  + str(Er))
+        plt.title("Image: " + str(filename) +  " Er:"  + str(round(Er,3)))
         plt.axis("off")
         plt.show()
-
-plt.imshow(images_gray["007.bmp"], cmap = "gray")
-plt.axis("off")
-plt        
         
+
+print(Ers_final)
+
+mean_ers_final = np.mean(Ers_final)
+
+print("Mean value fo all Er parameters used:", mean_ers_final)
 #%%
 
+def compute_thresholded_nucleus(images_set):
+    th_images = {}
+    for filename, image in images_set.items():
+        Tnco_i = Tncos[filename]
+        max_local_i = local_extremes[filename][0]
+        min_local_i = local_extremes[filename][1]
+        
+        print("Tnco:", Tnco_i, ", Min:", round(min_local_i,3), ", Max: ", round(max_local_i,3))
+        
+        diff = np.abs(Tnco_i - min_local_i)
+        print("Diff: ", round(diff,3))
+        
+        
+        Er = mean_ers_final
+        
+        if max_local_i < Tnco_i:
+            th = Tnco_i
+        if (np.abs(Tnco_i) - min_local_i) < Er:
+            th = (Tnco_i + min_local_i)/2
+                
+        if (np.abs(Tnco_i) - min_local_i) > Er:
+           
+            if Tnco_i > min_local_i:
+                th = ((Tnco_i + min_local_i + Er)/2)
+            else:
+                th = ((Tnco_i + min_local_i - Er)/2)
+                
+            
+            
+        w = image.shape[0]
+        h = image.shape[1]
+        im_new = image.copy()
+        for y in range(h):
+            for x in range(w):
+                pix = image[x,y]
+                if pix < th:
+                    i = image.min()
+                else:
+                    i = 1
+                    
+                im_new[x,y] = i
+        
+        black_mask = (im_new == image.min())
+        filled_black_regions = ndimage.binary_fill_holes(black_mask)
+        im_filled = np.where(filled_black_regions, image.min(), im_new)
+        
+        
+        # labels, num_features = ndimage.label(filled_black_regions)
+        # sizes = ndimage.sum(black_mask, labels, range(num_features + 1))
+        # min_size = 15
+        # filtered_black_regions = np.where(sizes > min_size, labels, 0)
+        # result_image = np.where(filtered_black_regions > 0 , image.min(), im_new)
+        
+        # im_filled_bool = im_filled.astype(bool)
+        # min_size_threshold = 5
+        # filtered_image_bool  = morphology.remove_small_objects(im_filled_bool, min_size=min_size_threshold, connectivity=1)
+        # result_image = filtered_image_bool.astype(int)
+        
+        # labeled_image, num_features = ndimage.label(filtered_image)
+        # sizes = ndimage.sum(filtered_image, labeled_image, range(1, num_features + 1))
+        # largest_index = np.argmax(sizes) + 1
+        # largest_component_mask = labeled_image == largest_index
+        # result_image = np.where(largest_component_mask, im_filled.min(), 1)
+        
+        inverted_image = im_filled.max() - im_filled
+        labeled_image, num_features = ndimage.label(inverted_image)
+        sizes = ndimage.sum(inverted_image, labeled_image, range(1, num_features + 1))
+        sorted_indices = np.argsort(sizes)[::-1]
+        top_indices = sorted_indices[:3]
+        filtered_image = np.zeros_like(im_filled)
+        for idx in top_indices:
+            filtered_image[labeled_image == idx + 1] = 1
+        result_image = im_filled.max() - filtered_image
+        
+        threshold_size = sizes[top_indices[-1]] * 0.5
+        filtered_indices = [idx for idx in top_indices if sizes[idx] >= threshold_size]
+        filtered_image2 = np.zeros_like(im_filled)
+        for idx in filtered_indices:
+            filtered_image2[labeled_image == idx + 1] = 1
+        result_image2 = im_filled.max() - filtered_image2
 
+        
+        plt.imshow(im_filled, cmap = "gray")
+        plt.title("Image: " + str(filename))
+        plt.axis("off")
+        plt.show()
+        
+        plt.imshow(result_image, cmap = "gray")
+        plt.title("Image: " + str(filename))
+        plt.axis("off")
+        plt.show()
+        
+        plt.imshow(result_image2, cmap="gray")
+        plt.title("Result Image with Retained Biggest Black Regions")
+        plt.axis("off")
+        plt.show()
+        
+        th_images[filename] = im_filled
+
+    return th_images
+
+
+th_10_first_images = compute_thresholded_nucleus(first_10_images)
