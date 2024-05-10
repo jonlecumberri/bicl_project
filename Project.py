@@ -13,6 +13,8 @@ from scipy import ndimage
 from scipy import interpolate
 from scipy import signal
 from skimage import morphology
+from skimage import filters
+from skimage import measure
 
 # %%
 # =============================================================================
@@ -370,7 +372,7 @@ def compute_thresholded_nucleus(images_set):
         print("Diff: ", round(diff,3))
         
         
-        Er = mean_ers_final
+        Er = 0.1388
         
         if max_local_i < Tnco_i:
             th = Tnco_i
@@ -439,20 +441,27 @@ def compute_thresholded_nucleus(images_set):
         result_image2 = im_filled.max() - filtered_image2
 
         
-        plt.imshow(im_filled, cmap = "gray")
+        # plt.imshow(im_filled, cmap = "gray")
+        # plt.title("Image: " + str(filename))
+        # plt.axis("off")
+        # plt.show()
+        
+        plt.subplot(121)
+        plt.imshow(image, cmap = "gray")
         plt.title("Image: " + str(filename))
         plt.axis("off")
-        plt.show()
-        
+        plt.subplot(122)
         plt.imshow(result_image, cmap = "gray")
         plt.title("Image: " + str(filename))
         plt.axis("off")
+        
         plt.show()
         
-        plt.imshow(result_image2, cmap="gray")
-        plt.title("Result Image with Retained Biggest Black Regions")
-        plt.axis("off")
-        plt.show()
+        
+        # plt.imshow(result_image2, cmap="gray")
+        # plt.title("Result Image with Retained Biggest Black Regions")
+        # plt.axis("off")
+        # plt.show()
         
         th_images[filename] = im_filled
 
@@ -460,3 +469,51 @@ def compute_thresholded_nucleus(images_set):
 
 
 th_10_first_images = compute_thresholded_nucleus(first_10_images)
+
+
+#%% Threshold estimation for WBC segmentation
+
+
+for filename, image in first_10_images.items():
+    
+    print(filename)
+    Tnco_i = Tncos[filename]
+    al = image.min()
+    au = image.max()/2
+    n = 5
+    
+    ers = np.linspace(al, au, n)
+    Twbcs = (image.max() + Tnco_i)/2 + ers
+    
+    ims_th_wbc = []
+    for Twbc in Twbcs:
+        print(Twbc)
+        w = image.shape[0]
+        h = image.shape[1]
+        im_new = image.copy()
+        for y in range(h):
+            for x in range(w):
+                pix = image[x,y]
+                if pix < Twbc:
+                    i = Twbc
+                else:
+                    i = pix
+                    
+                im_new[x,y] = i
+                
+        ims_th_wbc.append(im_new)
+    
+    ims_mean_th_wbc = sum(ims_th_wbc) / n
+    threshold_value = filters.threshold_otsu(ims_mean_th_wbc)
+    binary_image = ims_mean_th_wbc > threshold_value
+    
+    
+    
+    plt.imshow(binary_image, cmap="gray")
+    plt.title("Result Image mean Th WBC: " + str(filename))
+    plt.axis("off")
+    plt.show()
+    
+
+
+
