@@ -372,7 +372,7 @@ def compute_thresholded_nucleus(images_set):
         print("Diff: ", round(diff,3))
         
         
-        Er = 0.1388
+        Er = mean_ers_final
         
         if max_local_i < Tnco_i:
             th = Tnco_i
@@ -427,7 +427,7 @@ def compute_thresholded_nucleus(images_set):
         labeled_image, num_features = ndimage.label(inverted_image)
         sizes = ndimage.sum(inverted_image, labeled_image, range(1, num_features + 1))
         sorted_indices = np.argsort(sizes)[::-1]
-        top_indices = sorted_indices[:3]
+        top_indices = sorted_indices[:2]
         filtered_image = np.zeros_like(im_filled)
         for idx in top_indices:
             filtered_image[labeled_image == idx + 1] = 1
@@ -468,7 +468,7 @@ def compute_thresholded_nucleus(images_set):
     return th_images
 
 
-th_10_first_images = compute_thresholded_nucleus(first_10_images)
+th_nucleus_all = compute_thresholded_nucleus(images_gray)
 
 
 #%% Threshold estimation for WBC segmentation
@@ -479,12 +479,12 @@ for filename, image in first_10_images.items():
     print(filename)
     Tnco_i = Tncos[filename]
     al = image.min()
-    au = image.max()/2
+    au = image.max()/3
     n = 5
     
+    th = (image.max() + Tnco_i)/2
     ers = np.linspace(al, au, n)
-    Twbcs = (image.max() + Tnco_i)/2 + ers
-    
+    Twbcs = th + ers
     ims_th_wbc = []
     for Twbc in Twbcs:
         print(Twbc)
@@ -506,10 +506,25 @@ for filename, image in first_10_images.items():
     ims_mean_th_wbc = sum(ims_th_wbc) / n
     threshold_value = filters.threshold_otsu(ims_mean_th_wbc)
     binary_image = ims_mean_th_wbc > threshold_value
+    float_image = binary_image.astype(float)
+    
+    inverted_image = float_image.max() - float_image
+    labeled_image, num_features = ndimage.label(inverted_image)
+    sizes = ndimage.sum(inverted_image, labeled_image, range(1, num_features + 1))
+    sorted_indices = np.argsort(sizes)[::-1]
+    top_indices = sorted_indices[:1]
+    filtered_image = np.zeros_like(float_image)
+    for idx in top_indices:
+        filtered_image[labeled_image == idx + 1] = 1
+    result_image = float_image.max() - filtered_image
+    
+    black_mask = (result_image == 0)
+    filled_black_regions = ndimage.binary_fill_holes(black_mask)
+    im_filled = np.where(filled_black_regions, image.min(), result_image)
     
     
     
-    plt.imshow(binary_image, cmap="gray")
+    plt.imshow(im_filled, cmap="gray")
     plt.title("Result Image mean Th WBC: " + str(filename))
     plt.axis("off")
     plt.show()
