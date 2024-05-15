@@ -42,6 +42,10 @@ images = load_images_from_folder(folder_image_path)
 
 im_001 = images["001.bmp"]
 
+
+plt.imshow(im_001)
+plt.show()
+
 plt.imshow(im_001[:, :, 2])
 plt.axis("off")
 plt.show()
@@ -184,68 +188,68 @@ def histogram_image_zoomed(image, plot=True):
     return hist
 
 
-histogram_image_zoomed(images_gray["004.bmp"])
+histogram_image_zoomed(images_gray["001.bmp"])
 
 
 # %%
 
-def histogram_image_zoomed_bspline(image, degree, s, plot=True):
-    size = 256
-    hist = ndimage.histogram(image, 0, 1, size)
-    bins = np.linspace(0, 1, size)
+# def histogram_image_zoomed_bspline(image, degree, s, plot=True):
+#     size = 256
+#     hist = ndimage.histogram(image, 0, 1, size)
+#     bins = np.linspace(0, 1, size)
     
-    zoom_fact = 0.6
-    hist_zoom = hist[0:np.uint8(size*zoom_fact)]
-    bins_zoom_sp = np.round(bins[0:np.uint8(size*zoom_fact)],3)
-    bins_zoom = bins[0:np.uint8(size*zoom_fact)]
+#     zoom_fact = 0.6
+#     hist_zoom = hist[0:np.uint8(size*zoom_fact)]
+#     bins_zoom_sp = np.round(bins[0:np.uint8(size*zoom_fact)],3)
+#     bins_zoom = bins[0:np.uint8(size*zoom_fact)]
 
-    t, c, k = interpolate.splrep(bins_zoom_sp, hist_zoom, k=degree, s = s)
-    spline = interpolate.BSpline(t, c, k, extrapolate=True)
+#     t, c, k = interpolate.splrep(bins_zoom_sp, hist_zoom, k=degree, s = s)
+#     spline = interpolate.BSpline(t, c, k, extrapolate=True)
     
-    max_spline = np.argmax(spline(bins_zoom_sp))
-    size_zoom = len(bins_zoom_sp)
-    spline_local = spline(bins_zoom_sp[max_spline-2:size_zoom-1])
-    bins_local = bins_zoom_sp[max_spline-2:size_zoom-1]
+#     max_spline = np.argmax(spline(bins_zoom_sp))
+#     size_zoom = len(bins_zoom_sp)
+#     spline_local = spline(bins_zoom_sp[max_spline-2:size_zoom-1])
+#     bins_local = bins_zoom_sp[max_spline-2:size_zoom-1]
     
-    idxc = np.argmax(spline_local)
-    idxc1 = np.argmin(spline_local)
-   # if idcx1 == (len(spline_local) -1))
+#     idxc = np.argmax(spline_local)
+#     idxc1 = np.argmin(spline_local)
+#    # if idcx1 == (len(spline_local) -1))
     
-    xc = bins_local[idxc]
-    xc1 = bins_local[idxc1]
+#     xc = bins_local[idxc]
+#     xc1 = bins_local[idxc1]
     
-    #local_minima = bins_zoom[np.argmin(spline(bins_zoom_sp[idxc:len(bins_zoom_sp)-1]))]
+#     #local_minima = bins_zoom[np.argmin(spline(bins_zoom_sp[idxc:len(bins_zoom_sp)-1]))]
 
-    if plot:
-        plt.plot(bins_zoom, hist_zoom, color="blue", label="Histogram")
-        plt.plot(bins_zoom_sp, spline(bins_zoom_sp), color="red", label='B-spline Approximation')
-        plt.axvline(x=xc, color='green', linestyle='--', label='Max value')
-        plt.axvline(x=xc1, color='purple', linestyle='--', label='Min value')
-        plt.title('Histogram zoomed')
-        plt.xlabel('Pixel Value')
-        plt.ylabel('Frequency')
-        plt.legend()
-        plt.tight_layout()
-        plt.show()
+#     if plot:
+#         plt.plot(bins_zoom, hist_zoom, color="blue", label="Histogram")
+#         plt.plot(bins_zoom_sp, spline(bins_zoom_sp), color="red", label='B-spline Approximation')
+#         plt.axvline(x=xc, color='green', linestyle='--', label='Max value')
+#         plt.axvline(x=xc1, color='purple', linestyle='--', label='Min value')
+#         plt.title('Histogram zoomed')
+#         plt.xlabel('Pixel Value')
+#         plt.ylabel('Frequency')
+#         plt.legend()
+#         plt.tight_layout()
+#         plt.show()
         
         
 
-    return spline, xc, xc1
+#     return spline, xc, xc1
 
 
-sp, xmax, xmin = histogram_image_zoomed_bspline(images_gray["004.bmp"], 2, 15000)
-
-#%%
-
-for filename, image in images_gray.items():
-    histogram_image_zoomed_bspline(images_gray[filename], 2, 15000)
+# sp, xmax, xmin = histogram_image_zoomed_bspline(images_gray["004.bmp"], 2, 15000)
 
 #%%
 
-local_extremes = {}
-for filename, image in images_gray.items():
-    sp, xc, xc1 = histogram_image_zoomed_bspline(images_gray[filename], 2, 15000, plot = False)
-    local_extremes[filename] = (xc, xc1)
+# for filename, image in images_gray.items():
+#     histogram_image_zoomed_bspline(images_gray[filename], 2, 15000)
+
+#%%
+
+# local_extremes = {}
+# for filename, image in images_gray.items():
+#     sp, xc, xc1 = histogram_image_zoomed_bspline(images_gray[filename], 2, 15000, plot = False)
+#     local_extremes[filename] = (xc, xc1)
     
 #%% improved version
 
@@ -274,12 +278,12 @@ def histogram_image_zoomed_bspline2(image, degree, s, plot=True):
         else:
             not_finished = False
         
-    #print(maxima, minima)
-    plt.plot(bins[index1:index2+20], hist[index1:index2+20], color="blue", label="Histogram")
-    plt.plot(bins[index1:index2+20], spline_values[index1:index2+20], color="red", label='B-spline Approximation')
-    plt.axvline(x=maxima, color='green', linestyle='--', label='Max value')
-    plt.axvline(x=minima, color='blue', linestyle='--', label='Min value')
-    plt.show()
+    if plot:
+        plt.plot(bins[index1:index2+20], hist[index1:index2+20], color="blue", label="Histogram")
+        plt.plot(bins[index1:index2+20], spline_values[index1:index2+20], color="red", label='B-spline Approximation')
+        plt.axvline(x=maxima, color='green', linestyle='--', label='Max value')
+        plt.axvline(x=minima, color='blue', linestyle='--', label='Min value')
+        plt.show()
     
     return maxima, minima
     
@@ -297,6 +301,13 @@ keys_to_keep = ['001.bmp', '002.bmp', '003.bmp', '004.bmp', '005.bmp', '006.bmp'
 #keys_to_keep = ["007.bmp"]
 
 first_10_images = {key: images_gray[key] for key in keys_to_keep if key in images_gray}
+
+
+keys_to_keep = ['090.bmp', '091.bmp', '092.bmp', '093.bmp', '094.bmp', '095.bmp', '096.bmp', '097.bmp', '098.bmp', '099.bmp']
+
+#keys_to_keep = ["007.bmp"]
+
+last_10_images = {key: images_gray[key] for key in keys_to_keep if key in images_gray}
 
 
 #%% conditions for et
@@ -530,5 +541,202 @@ for filename, image in first_10_images.items():
     plt.show()
     
 
+#%%
 
 
+def compute_threshold_wbc(images_set):
+    
+    th_images = {}
+    for filename, image in images_set.items():
+    
+        print(filename,"\n################################\n")
+        Tnco_i = Tncos[filename]
+        al = image.min()
+        au = image.max()/3
+        n = 5
+        # if al > 0.2:
+        #     al = al - al/4
+        
+        print("Max: ",image.max())
+        print("Tnco: ",Tnco_i)
+        print("al: ", al)
+        print("au: ", au)
+        
+        th = (image.max() + Tnco_i)/2
+        
+        print("th: ", th)
+        ers = np.linspace(al, au, n)
+        print("ers: ",ers)
+        Twbcs = th + ers
+        ims_th_wbc = []
+        for Twbc in Twbcs:
+            print(Twbc)
+            w = image.shape[0]
+            h = image.shape[1]
+            im_new = image.copy()
+            for y in range(h):
+                for x in range(w):
+                    pix = image[x,y]
+                    if pix < Twbc:
+                        i = Twbc
+                    else:
+                        i = 1
+                        
+                    im_new[x,y] = i
+                    
+            ims_th_wbc.append(im_new)
+        
+        ims_mean_th_wbc = sum(ims_th_wbc) / n
+        
+        print("\n\n\n")
+        
+        threshold_value = filters.threshold_otsu(ims_mean_th_wbc)
+        binary_image = ims_mean_th_wbc > threshold_value
+        float_image = binary_image.astype(float)
+        
+        w = float_image.shape[0]
+        h = float_image.shape[1]
+        im_binary_otsu = float_image.copy()
+        for y in range(h):
+            for x in range(w):
+                pix = float_image[x,y]
+                if pix > 0.6:
+                    i = 1
+                else:
+                    i = 0
+                        
+                im_new[x,y] = i
+        
+        inverted_image = float_image.max() - float_image
+        labeled_image, num_features = ndimage.label(inverted_image)
+        sizes = ndimage.sum(inverted_image, labeled_image, range(1, num_features + 1))
+        sorted_indices = np.argsort(sizes)[::-1]
+        top_indices = sorted_indices[:1]
+        filtered_image = np.zeros_like(float_image)
+        for idx in top_indices:
+            filtered_image[labeled_image == idx + 1] = 1
+        result_image = float_image.max() - filtered_image
+        
+        black_mask = (result_image == 0)
+        filled_black_regions = ndimage.binary_fill_holes(black_mask)
+        im_filled = np.where(filled_black_regions, image.min(), result_image)
+        
+        black_mask = (float_image == 0)
+        filled_black_regions = ndimage.binary_fill_holes(black_mask)
+        im_filled2 = np.where(filled_black_regions, image.min(), float_image)
+        
+        
+        
+        # plt.imshow(im_filled, cmap="gray")
+        # plt.title("Result Image mean Th WBC: " + str(filename))
+        # plt.axis("off")
+        # plt.show()
+        
+        
+        plt.subplot(221)
+        plt.imshow(image, cmap = "gray")
+        plt.title("Image: " + str(filename))
+        plt.axis("off")
+        plt.subplot(222)
+        plt.imshow(im_filled2, cmap = "gray")
+        plt.title("WBC just fillED")
+        plt.axis("off")
+        plt.subplot(223)
+        plt.imshow(im_filled, cmap = "gray")
+        plt.title("WBC processed")
+        plt.axis("off")
+        plt.subplot(224)
+        plt.imshow(ims_mean_th_wbc, cmap = "gray")
+        plt.title("WBC mean otsu ")
+        plt.axis("off")
+        
+        plt.show()
+    
+        th_images[filename] = im_filled
+        
+        
+    return th_images
+
+
+th_wbc_all = compute_threshold_wbc(last_10_images)
+    
+
+
+
+#%%
+from scipy.signal import argrelextrema
+
+
+def histogram_image_zoomed2(image, plot=True):
+    size = 255
+    hist = ndimage.histogram(image, 0, 1, size)
+    bins = np.linspace(0, 1, size)
+    if plot:
+        plt.plot(bins[np.uint8(size*0.5):size], hist[np.uint8(size*0.5):size])
+        plt.title('Histogram zoomed '+ str(filename))
+        plt.xlabel('Pixel Value')
+        plt.ylabel('Frequency')
+
+        plt.tight_layout()
+        plt.show()
+
+    return hist
+    
+
+for filename, image in images_gray.items():
+    
+    hist = histogram_image_zoomed2(image, plot = True)
+    
+
+    local_maxima_indices = argrelextrema(hist, np.greater)[0]
+    
+    # Sort the indices based on their corresponding intensity values
+    sorted_indices = sorted(local_maxima_indices, key=lambda x: hist[x], reverse=True)
+    
+    # Get the indices of the two greatest local maxima
+    greatest_maxima_indices = sorted_indices[:2]
+    
+    # Scale the indices to the range of 0-1
+    scaled_indices = [idx / 255 for idx in greatest_maxima_indices]
+    
+    # Compute the mean index of the two greatest maxima, scaled to 0-1
+    mean_index_of_greatest_maxima = np.mean(scaled_indices)
+    
+    second_maxima_index = sorted_indices[1]
+    # Scale the index of the second greatest maxima to the range of 0-1
+    scaled_second_maxima_index = second_maxima_index / 255
+    
+    # Compute the mean index of the second greatest maxima and 0.5, scaled to 0-1
+    mean_index_of_second_maxima_and_half = np.mean([scaled_second_maxima_index, 0.5])
+    
+    print("Mean index of the second greatest maxima and 0.5 (scaled to 0-1):", mean_index_of_second_maxima_and_half)
+    
+    print("Mean index of the two greatest maxima (scaled to 0-1):", mean_index_of_greatest_maxima)
+    
+    
+    w = image.shape[0]
+    h = image.shape[1]
+    im_new = image.copy()
+    for y in range(h):
+        for x in range(w):
+            pix = image[x,y]
+            if pix < mean_index_of_greatest_maxima:
+                i = 0
+            else:
+                i = 1      
+            im_new[x,y] = i
+    
+    
+    plt.subplot(121)
+    plt.imshow(image, cmap = "gray")
+    plt.title("Image: " + str(filename))
+    plt.axis("off")
+    plt.subplot(122)
+    plt.imshow(im_new, cmap = "gray")
+    plt.title("WBC just fillED")
+    plt.axis("off")
+    plt.show()
+        
+    
+    
+    
