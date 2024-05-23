@@ -15,6 +15,10 @@ from scipy import signal
 from skimage import morphology
 from skimage import filters
 from skimage import measure
+from skimage.segmentation import mark_boundaries
+from skimage.util import img_as_float
+from sklearn.cluster import KMeans
+from skimage import io, segmentation, color
 
 # %%
 # =============================================================================
@@ -737,6 +741,60 @@ for filename, image in images_gray.items():
     plt.axis("off")
     plt.show()
         
-    
-    
+
+# %% Apply SLIC and try to obtain something
+dict_slic_images = {}
+
+def slic_algorithm(dict_images):
+    ''' Apply SLIC to the images, where the n_segments control the final number of 
+    superpixels and the compactness controls the shape of these superpixels.For 
+    each superpixel the mean color is computed and these are used as mean colors for the different segments'''
+    for i, (key,value) in enumerate(dict_images.items()):
+        if i%2 == 0:
+            image = dict_images[key]
+            image = img_as_float(image)
+            segments_slic = segmentation.slic(image, n_segments=5, compactness=10, start_label=1)
+            image_slic = mark_boundaries(image, segments_slic)
+            fig, ax = plt.subplots(1,1, figsize=(10,10))
+            ax.imshow(image_slic)
+            ax.axis('off')
+            ax.set_title('Superpixels thorugh SLIC')
+            plt.show()
+            dict_slic_images[key] = segments_slic
+            regions = color.label2rgb(segments_slic, image, kind='avg')
+            superpixels = np.reshape(regions, (-1,3))        
+    return
+
+slic_algorithm(images) 
+# %% Taking all the cytoplasm
+seg_cytoplasm_dict={}
+def segmented_cytoplasm(dict_images_seg, dict_images):
+    '''Funtion used to do a thresholding on the images coming from the SLIC 
+    algorithm to obtain the cytoplasm'''
+    for i in range(0,len(dict_images_seg),2):
+        image_original = images[i]
+        image = dict_images_seg[i]
+        new_image = np.copy(image)
+        w = new_image.shape[0]
+        h = new_image.shape[1]
+        for x in range(w):
+            for y in range(h):
+                pixel = new_image[x,y]
+                if pixel== 2 or pixel==3: 
+                    new_pixel= 1
+                else: 
+                    new_pixel= 0
+                new_image[x,y] = new_pixel
+        seg_cytoplasm_dict[i] = new_image
+        fig, ax = plt.subplots(1,2,figsize=(10,10))
+        ax[0].imshow(image_original)
+        ax[0].axis('off')
+        ax[0].set_title('Image original')
+        ax[1].imshow(new_image, cmap='gray')
+        ax[1].axis('off')
+        ax[1].set_title('Segmented cytoplasm bebe')
+        plt.show()
+    return
+
+segmented_cytoplasm(dict_slic_images, images)
     
