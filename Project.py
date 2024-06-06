@@ -4,24 +4,34 @@ Created on Wed Apr 17 13:05:51 2024
 
 @author: jla
 """
-# All the imports
+
+
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-from skimage import morphology
 from scipy import ndimage
 from scipy import interpolate
+from scipy import signal
+from skimage import morphology
+from skimage import filters
+from skimage import measure
+from skimage.segmentation import mark_boundaries
+from skimage.util import img_as_float
+from sklearn.cluster import KMeans
+from skimage import io, segmentation, color
+from skimage import io, color, filters, segmentation, morphology, measure
+from scipy import ndimage as ndi
 
 # %%
-
 # =============================================================================
 # Retrieval of images
 # =============================================================================
 
 
 cwd = os.getcwd()
-folder_images = "C://Users//pms20//OneDrive//Escritorio//Imatges Lab//Trabajo Imatges//bicl_project//Dataset 2"
+folder_images = "Dataset 2"
 folder_image_path = os.path.join(cwd, folder_images)
+
 
 def load_images_from_folder(folder):
     images = {}
@@ -33,11 +43,16 @@ def load_images_from_folder(folder):
                 images[filename] = image
     return images
 
+
 images = load_images_from_folder(folder_image_path)
 
 im_001 = images["001.bmp"]
 
-plt.imshow(im_001[:,:,2])
+
+plt.imshow(im_001)
+plt.show()
+
+plt.imshow(im_001[:, :, 2])
 plt.axis("off")
 plt.show()
 
@@ -47,86 +62,87 @@ def images_to_gray_scale(ims):
     i = 1
     for filename, image in ims.items():
         if i % 2 != 0:
-            im_g = images[filename][:,:,0]
+            im_g = images[filename][:, :, 0]
             images_gray[filename] = im_g / im_g.max()
-        i = i + 1 
+        i = i + 1
     return images_gray
-        
+
+
 images_gray = images_to_gray_scale(images)
 
 
 im_001_gray = images_gray["001.bmp"]
-plt.imshow(im_001_gray, cmap = "gray")
+plt.imshow(im_001_gray, cmap="gray")
 plt.axis("off")
 plt.show()
 
-#%%
+
+# %%
 # =============================================================================
 # Threshold estimation for nucleus segmentation
 # =============================================================================
 
-# Take values of maximum and minimum from the image 
 maxIm = im_001_gray.max()
 minIm = im_001_gray.min()
 
-# The formula to compute the density for n1
-n1 = np.linspace(1,100,100)
-#n2 = 3
-#n2_2 = minIm * n1 / maxIm
-# using the condition of the maximum threshold 
+
+n1 = np.linspace(1, 100, 100)
+n2 = 3
+n2_2 = minIm * n1 / maxIm
 n2_3 = minIm / (1 - maxIm/n1)
 
-# computing the sensibility 
-sensN1 =  (maxIm) / (maxIm + minIm * n1/n2_3)
+sensN1 = (maxIm) / (maxIm + minIm * n1/n2_3)
 
-# plotting the sensibility values as a function of the n values
 plt.plot(n1[0:10], -sensN1[0:10])
 plt.xlabel("n1")
 plt.ylabel("Υn1")
 plt.title("Sensivity for image 1")
 plt.show()
 
-# Using the images and performing the previous operation for all the images
 for n in images_gray:
-    im = images_gray[n]   
+    im = images_gray[n]
+
     maxIm = im.max()
     minIm = im.min()
     print(maxIm, minIm, "\n")
-    
-    n1 = np.linspace(1,100,100)
+
+    n1 = np.linspace(1, 100, 100)
     #n2 = 3
     #n2_2 = minIm * n1 / maxIm
     n2 = minIm / (1 - maxIm/n1)
-    
-    sensN1 =  (maxIm) / (maxIm + minIm * n1/n2)
-    
+
+    sensN1 = (maxIm) / (maxIm + minIm * n1/n2)
+
     plt.plot(n1[0:10], -sensN1[0:10])
- 
+
 plt.xlabel("n1")
 plt.ylabel("Υn1")
 plt.show()
 
-# Same procedure for the n2:
+
 for n in images_gray:
     im = images_gray[n]
-    
+
     maxIm = im.max()
     minIm = im.min()
-    
-    n2 = np.linspace(1,100,100)
+
+    n2 = np.linspace(1, 100, 100)
     #n2 = 3
     #n2_2 = minIm * n1 / maxIm
     n1 = maxIm / (1 - minIm/n2)
-    
-    sensN2 =  (minIm) / (minIm + maxIm * n2/n1)
-    
+
+    sensN2 = (minIm) / (minIm + maxIm * n2/n1)
+
     plt.plot(n2[0:10], -sensN2[0:10])
- 
+
 plt.xlabel("n2")
 plt.ylabel("Υn2")
 plt.show()
 
-# %%
+n1 = 2
+n2 = 4
+
+
 def Tnco_images(ims):
     thresholds = {}
     for filename, image in ims.items():
@@ -183,165 +199,697 @@ histogram_image_zoomed(images_gray["001.bmp"])
 
 # %%
 
-def histogram_image_zoomed_bspline(image, degree, s, plot=True):
+# def histogram_image_zoomed_bspline(image, degree, s, plot=True):
+#     size = 256
+#     hist = ndimage.histogram(image, 0, 1, size)
+#     bins = np.linspace(0, 1, size)
+    
+#     zoom_fact = 0.6
+#     hist_zoom = hist[0:np.uint8(size*zoom_fact)]
+#     bins_zoom_sp = np.round(bins[0:np.uint8(size*zoom_fact)],3)
+#     bins_zoom = bins[0:np.uint8(size*zoom_fact)]
+
+#     t, c, k = interpolate.splrep(bins_zoom_sp, hist_zoom, k=degree, s = s)
+#     spline = interpolate.BSpline(t, c, k, extrapolate=True)
+    
+#     max_spline = np.argmax(spline(bins_zoom_sp))
+#     size_zoom = len(bins_zoom_sp)
+#     spline_local = spline(bins_zoom_sp[max_spline-2:size_zoom-1])
+#     bins_local = bins_zoom_sp[max_spline-2:size_zoom-1]
+    
+#     idxc = np.argmax(spline_local)
+#     idxc1 = np.argmin(spline_local)
+#    # if idcx1 == (len(spline_local) -1))
+    
+#     xc = bins_local[idxc]
+#     xc1 = bins_local[idxc1]
+    
+#     #local_minima = bins_zoom[np.argmin(spline(bins_zoom_sp[idxc:len(bins_zoom_sp)-1]))]
+
+#     if plot:
+#         plt.plot(bins_zoom, hist_zoom, color="blue", label="Histogram")
+#         plt.plot(bins_zoom_sp, spline(bins_zoom_sp), color="red", label='B-spline Approximation')
+#         plt.axvline(x=xc, color='green', linestyle='--', label='Max value')
+#         plt.axvline(x=xc1, color='purple', linestyle='--', label='Min value')
+#         plt.title('Histogram zoomed')
+#         plt.xlabel('Pixel Value')
+#         plt.ylabel('Frequency')
+#         plt.legend()
+#         plt.tight_layout()
+#         plt.show()
+        
+        
+
+#     return spline, xc, xc1
+
+
+# sp, xmax, xmin = histogram_image_zoomed_bspline(images_gray["004.bmp"], 2, 15000)
+
+#%%
+
+# for filename, image in images_gray.items():
+#     histogram_image_zoomed_bspline(images_gray[filename], 2, 15000)
+
+#%%
+
+# local_extremes = {}
+# for filename, image in images_gray.items():
+#     sp, xc, xc1 = histogram_image_zoomed_bspline(images_gray[filename], 2, 15000, plot = False)
+#     local_extremes[filename] = (xc, xc1)
+    
+#%% improved version
+
+def histogram_image_zoomed_bspline2(image, degree, s, plot=True):
     size = 256
     hist = ndimage.histogram(image, 0, 1, size)
     bins = np.linspace(0, 1, size)
     
-    zoom_fact = 0.6
-    hist_zoom = hist[0:np.uint8(size*zoom_fact)]
-    bins_zoom_sp = np.round(bins[0:np.uint8(size*zoom_fact)],3)
-    bins_zoom = bins[0:np.uint8(size*zoom_fact)]
-
-    t, c, k = interpolate.splrep(bins_zoom_sp, hist_zoom, k=degree, s = s)
+    t, c, k = interpolate.splrep(bins, hist, k=degree, s = s)
     spline = interpolate.BSpline(t, c, k, extrapolate=True)
+    spline_values = spline(bins)
     
-    max_spline = np.argmax(spline(bins_zoom_sp))
-    size_zoom = len(bins_zoom_sp)
-    spline_local = spline(bins_zoom_sp[max_spline-2:size_zoom-1])
-    bins_local = bins_zoom_sp[max_spline-2:size_zoom-1]
+    index1 = np.argmax(spline_values > 1)
+    index2 = np.uint8(256/2)
     
-    idxc = np.argmax(spline_local)
-    idxc1 = np.argmin(spline_local)
-
+    idxc = np.argmax(spline_values[index1:index2])
+    maxima = bins[idxc + index1]
     
-    xc = bins_local[idxc]
-    xc1 = bins_local[idxc1]
-    
-    #local_minima = bins_zoom[np.argmin(spline(bins_zoom_sp[idxc:len(bins_zoom_sp)-1]))]
-
+    not_finished = True
+    while not_finished:
+        idxc1 = np.argmin(spline_values[(idxc + index1):index2])
+        minima = bins[idxc1 + idxc + index1]
+        if idxc1 == (len(spline_values[idxc:index2]) -1):
+            #print("In")
+            index2 = index2 + 10
+        else:
+            not_finished = False
+        
     if plot:
-        plt.plot(bins_zoom, hist_zoom, color="blue", label="Histogram")
-        plt.plot(bins_zoom_sp, spline(bins_zoom_sp), color="red", label='B-spline Approximation')
-        plt.axvline(x=xc, color='green', linestyle='--', label='Max value')
-        plt.axvline(x=xc1, color='purple', linestyle='--', label='Min value')
-        plt.title('Histogram zoomed')
-        plt.xlabel('Pixel Value')
-        plt.ylabel('Frequency')
-        plt.legend()
-        plt.tight_layout()
+        plt.plot(bins[index1:index2+20], hist[index1:index2+20], color="blue", label="Histogram")
+        plt.plot(bins[index1:index2+20], spline_values[index1:index2+20], color="red", label='B-spline Approximation')
+        plt.axvline(x=maxima, color='green', linestyle='--', label='Max value')
+        plt.axvline(x=minima, color='blue', linestyle='--', label='Min value')
         plt.show()
-        
-        
-
-    return spline, xc, xc1
-
-
-sp, xmax, xmin = histogram_image_zoomed_bspline(images_gray["004.bmp"], 2, 15000)
+    
+    return maxima, minima
+    
+    
+#%%
+local_extremes = {}
+for filename, image in images_gray.items():
+    xc, xc1 = histogram_image_zoomed_bspline2(images_gray[filename], 2, 45000, plot = False)
+    local_extremes[filename] = (xc, xc1)
 
 #%%
 
-min_list = []
-max_list = []
+keys_to_keep = ['001.bmp', '002.bmp', '003.bmp', '004.bmp', '005.bmp', '006.bmp', '007.bmp', '008.bmp', '009.bmp', '010.bmp']
+
+#keys_to_keep = ["007.bmp"]
+
+first_10_images = {key: images_gray[key] for key in keys_to_keep if key in images_gray}
+
+
+keys_to_keep = ['090.bmp', '091.bmp', '092.bmp', '093.bmp', '094.bmp', '095.bmp', '096.bmp', '097.bmp', '098.bmp', '099.bmp']
+
+#keys_to_keep = ["007.bmp"]
+
+last_10_images = {key: images_gray[key] for key in keys_to_keep if key in images_gray}
+
+
+#%% conditions for et
+Ers_final = []
+
 for filename, image in images_gray.items():
-    hist = histogram_image_zoomed_bspline(images_gray[filename], 2, 15000)
-    max_list.append(hist[1])
-    min_list.append(hist[2])
+    Tnco_i = Tncos[filename]
+    max_local_i = local_extremes[filename][0]
+    min_local_i = local_extremes[filename][1]
+    
+    print("Tnco:", Tnco_i, ", Min:", round(min_local_i,3), ", Max: ", round(max_local_i,3))
+    
+    diff = np.abs(Tnco_i - min_local_i)
+    print("Diff: ", round(diff,3))
+    
+    Ers = np.linspace(0.12, 0.18, 5)
+    #Ers_final = []
+    
+    for Er in Ers:
+    
+        if max_local_i < Tnco_i:
+            th = Tnco_i
+        if (np.abs(Tnco_i) - min_local_i) < Er:
+            th = (Tnco_i + min_local_i)/2
+            
+        if (np.abs(Tnco_i) - min_local_i) > Er:
+            Er_final = Er
+            print("Er computation")
+            if Tnco_i > min_local_i:
+                th = ((Tnco_i + min_local_i + Er)/2)
+            else:
+                th = ((Tnco_i + min_local_i - Er)/2)
+            Ers_final.append(Er_final)
+        
+        
+        w = image.shape[0]
+        h = image.shape[1]
+        im_new = image.copy()
+        for y in range(h):
+            for x in range(w):
+                pix = image[x,y]
+                if pix < th:
+                    i = image.min()
+                else:
+                    i = pix
+                
+                im_new[x,y] = i
+        
+    
+        plt.imshow(im_new, cmap = "gray")
+        plt.title("Image: " + str(filename) +  " Er:"  + str(round(Er,3)))
+        plt.axis("off")
+        plt.show()
+        
+
+print(Ers_final)
+
+mean_ers_final = np.mean(Ers_final)
+
+print("Mean value fo all Er parameters used:", mean_ers_final)
+#%%
+
+def compute_thresholded_nucleus(images_set):
+    th_images = {}
+    for filename, image in images_set.items():
+        Tnco_i = Tncos[filename]
+        max_local_i = local_extremes[filename][0]
+        min_local_i = local_extremes[filename][1]
+        
+        print("Tnco:", Tnco_i, ", Min:", round(min_local_i,3), ", Max: ", round(max_local_i,3))
+        
+        diff = np.abs(Tnco_i - min_local_i)
+        print("Diff: ", round(diff,3))
+        
+        
+        Er = mean_ers_final
+        
+        if max_local_i < Tnco_i:
+            th = Tnco_i
+        if (np.abs(Tnco_i) - min_local_i) < Er:
+            th = (Tnco_i + min_local_i)/2
+                
+        if (np.abs(Tnco_i) - min_local_i) > Er:
+           
+            if Tnco_i > min_local_i:
+                th = ((Tnco_i + min_local_i + Er)/2)
+            else:
+                th = ((Tnco_i + min_local_i - Er)/2)
+                
+            
+            
+        w = image.shape[0]
+        h = image.shape[1]
+        im_new = image.copy()
+        for y in range(h):
+            for x in range(w):
+                pix = image[x,y]
+                if pix < th:
+                    i = image.min()
+                else:
+                    i = 1
+                    
+                im_new[x,y] = i
+        
+        black_mask = (im_new == image.min())
+        filled_black_regions = ndimage.binary_fill_holes(black_mask)
+        im_filled = np.where(filled_black_regions, image.min(), im_new)
+        
+        
+        # labels, num_features = ndimage.label(filled_black_regions)
+        # sizes = ndimage.sum(black_mask, labels, range(num_features + 1))
+        # min_size = 15
+        # filtered_black_regions = np.where(sizes > min_size, labels, 0)
+        # result_image = np.where(filtered_black_regions > 0 , image.min(), im_new)
+        
+        # im_filled_bool = im_filled.astype(bool)
+        # min_size_threshold = 5
+        # filtered_image_bool  = morphology.remove_small_objects(im_filled_bool, min_size=min_size_threshold, connectivity=1)
+        # result_image = filtered_image_bool.astype(int)
+        
+        # labeled_image, num_features = ndimage.label(filtered_image)
+        # sizes = ndimage.sum(filtered_image, labeled_image, range(1, num_features + 1))
+        # largest_index = np.argmax(sizes) + 1
+        # largest_component_mask = labeled_image == largest_index
+        # result_image = np.where(largest_component_mask, im_filled.min(), 1)
+        
+        inverted_image = im_filled.max() - im_filled
+        labeled_image, num_features = ndimage.label(inverted_image)
+        sizes = ndimage.sum(inverted_image, labeled_image, range(1, num_features + 1))
+        sorted_indices = np.argsort(sizes)[::-1]
+        top_indices = sorted_indices[:2]
+        filtered_image = np.zeros_like(im_filled)
+        for idx in top_indices:
+            filtered_image[labeled_image == idx + 1] = 1
+        result_image = im_filled.max() - filtered_image
+        
+        threshold_size = sizes[top_indices[-1]] * 0.5
+        filtered_indices = [idx for idx in top_indices if sizes[idx] >= threshold_size]
+        filtered_image2 = np.zeros_like(im_filled)
+        for idx in filtered_indices:
+            filtered_image2[labeled_image == idx + 1] = 1
+        result_image2 = im_filled.max() - filtered_image2
+
+        
+        # plt.imshow(im_filled, cmap = "gray")
+        # plt.title("Image: " + str(filename))
+        # plt.axis("off")
+        # plt.show()
+        
+        plt.subplot(121)
+        plt.imshow(image, cmap = "gray")
+        plt.title("Image: " + str(filename))
+        plt.axis("off")
+        plt.subplot(122)
+        plt.imshow(result_image, cmap = "gray")
+        plt.title("Image: " + str(filename))
+        plt.axis("off")
+        
+        plt.show()
+        
+        
+        # plt.imshow(result_image2, cmap="gray")
+        # plt.title("Result Image with Retained Biggest Black Regions")
+        # plt.axis("off")
+        # plt.show()
+        
+        th_images[filename] = im_filled
+
+    return th_images
+
+
+th_nucleus_all = compute_thresholded_nucleus(images_gray)
+
+
+#%% Threshold estimation for WBC segmentation
+
+
+for filename, image in first_10_images.items():
+    
+    print(filename)
+    Tnco_i = Tncos[filename]
+    al = image.min()
+    au = image.max()/3
+    n = 5
+    
+    th = (image.max() + Tnco_i)/2
+    ers = np.linspace(al, au, n)
+    Twbcs = th + ers
+    ims_th_wbc = []
+    for Twbc in Twbcs:
+        print(Twbc)
+        w = image.shape[0]
+        h = image.shape[1]
+        im_new = image.copy()
+        for y in range(h):
+            for x in range(w):
+                pix = image[x,y]
+                if pix < Twbc:
+                    i = Twbc
+                else:
+                    i = pix
+                    
+                im_new[x,y] = i
+                
+        ims_th_wbc.append(im_new)
+    
+    ims_mean_th_wbc = sum(ims_th_wbc) / n
+    threshold_value = filters.threshold_otsu(ims_mean_th_wbc)
+    binary_image = ims_mean_th_wbc > threshold_value
+    float_image = binary_image.astype(float)
+    
+    inverted_image = float_image.max() - float_image
+    labeled_image, num_features = ndimage.label(inverted_image)
+    sizes = ndimage.sum(inverted_image, labeled_image, range(1, num_features + 1))
+    sorted_indices = np.argsort(sizes)[::-1]
+    top_indices = sorted_indices[:1]
+    filtered_image = np.zeros_like(float_image)
+    for idx in top_indices:
+        filtered_image[labeled_image == idx + 1] = 1
+    result_image = float_image.max() - filtered_image
+    
+    black_mask = (result_image == 0)
+    filled_black_regions = ndimage.binary_fill_holes(black_mask)
+    im_filled = np.where(filled_black_regions, image.min(), result_image)
+    
+    
+    
+    plt.imshow(im_filled, cmap="gray")
+    plt.title("Result Image mean Th WBC: " + str(filename))
+    plt.axis("off")
+    plt.show()
     
 
-# %%
-# =============================================================================
-# Introduction of the parameter Er
-# =============================================================================
+#%%
 
-# %%
-'''
-Now what we can do is to compute the value pf the threshold in segmentation for all the images and apply it, 
-taking into account that for all the images, the values of n that will bw chosen will be the ones aat which the 
-graphs start converging and stabilize. These values are n1=4 and n2=4. Then the threshold values are used to segmentate the nucleus
-'''
 
-# Capturing the threshold values
-keys_images_gray = list(images_gray.keys())
-values_images_gray = list(images_gray.values())
-thresholded_images = {}
-N1 = 2
-N2 = 2
-for i in range(len(values_images_gray)):
-    image = values_images_gray[i]
+def compute_threshold_wbc(images_set):
     
-    max_Im = image.max()
-    min_Im = image.min()
-    Tc0 = max_Im/N1 + min_Im/N2
-    im_th = image < Tc0
-    im_filled = ndimage.binary_fill_holes(im_th) # this fills all the holes of the nuclei segmented image
-    im_cleaned = morphology.opening(im_filled, morphology.square(7)) # this removes all the trash detected around the nucleus
-    thresholded_images[keys_images_gray[i]] = im_cleaned
+    th_images = {}
+    for filename, image in images_set.items():
     
- # Plotting the 1st thresholded image
-   
-im_001_thresholded = thresholded_images["001.bmp"]
-plt.imshow(im_001_thresholded, cmap= 'binary')
-plt.title('Thresholded image')
-plt.axis('off')   
-plt.show()
+        print(filename,"\n################################\n")
+        Tnco_i = Tncos[filename]
+        al = image.min()
+        au = image.max()/3
+        n = 5
+        # if al > 0.2:
+        #     al = al - al/4
+        
+        print("Max: ",image.max())
+        print("Tnco: ",Tnco_i)
+        print("al: ", al)
+        print("au: ", au)
+        
+        th = (image.max() + Tnco_i)/2
+        
+        print("th: ", th)
+        ers = np.linspace(al, au, n)
+        print("ers: ",ers)
+        Twbcs = th + ers
+        ims_th_wbc = []
+        for Twbc in Twbcs:
+            print(Twbc)
+            w = image.shape[0]
+            h = image.shape[1]
+            im_new = image.copy()
+            for y in range(h):
+                for x in range(w):
+                    pix = image[x,y]
+                    if pix < Twbc:
+                        i = Twbc
+                    else:
+                        i = 1
+                        
+                    im_new[x,y] = i
+                    
+            ims_th_wbc.append(im_new)
+        
+        ims_mean_th_wbc = sum(ims_th_wbc) / n
+        
+        print("\n\n\n")
+        
+        threshold_value = filters.threshold_otsu(ims_mean_th_wbc)
+        binary_image = ims_mean_th_wbc > threshold_value
+        float_image = binary_image.astype(float)
+        
+        w = float_image.shape[0]
+        h = float_image.shape[1]
+        im_binary_otsu = float_image.copy()
+        for y in range(h):
+            for x in range(w):
+                pix = float_image[x,y]
+                if pix > 0.6:
+                    i = 1
+                else:
+                    i = 0
+                        
+                im_new[x,y] = i
+        
+        inverted_image = float_image.max() - float_image
+        labeled_image, num_features = ndimage.label(inverted_image)
+        sizes = ndimage.sum(inverted_image, labeled_image, range(1, num_features + 1))
+        sorted_indices = np.argsort(sizes)[::-1]
+        top_indices = sorted_indices[:1]
+        filtered_image = np.zeros_like(float_image)
+        for idx in top_indices:
+            filtered_image[labeled_image == idx + 1] = 1
+        result_image = float_image.max() - filtered_image
+        
+        black_mask = (result_image == 0)
+        filled_black_regions = ndimage.binary_fill_holes(black_mask)
+        im_filled = np.where(filled_black_regions, image.min(), result_image)
+        
+        black_mask = (float_image == 0)
+        filled_black_regions = ndimage.binary_fill_holes(black_mask)
+        im_filled2 = np.where(filled_black_regions, image.min(), float_image)
+        
+        
+        
+        # plt.imshow(im_filled, cmap="gray")
+        # plt.title("Result Image mean Th WBC: " + str(filename))
+        # plt.axis("off")
+        # plt.show()
+        
+        
+        plt.subplot(221)
+        plt.imshow(image, cmap = "gray")
+        plt.title("Image: " + str(filename))
+        plt.axis("off")
+        plt.subplot(222)
+        plt.imshow(im_filled2, cmap = "gray")
+        plt.title("WBC just fillED")
+        plt.axis("off")
+        plt.subplot(223)
+        plt.imshow(im_filled, cmap = "gray")
+        plt.title("WBC processed")
+        plt.axis("off")
+        plt.subplot(224)
+        plt.imshow(ims_mean_th_wbc, cmap = "gray")
+        plt.title("WBC mean otsu ")
+        plt.axis("off")
+        
+        plt.show()
+    
+        th_images[filename] = im_filled
+        
+        
+    return th_images
 
-# %% Imposing the conditions of thresholding as a function of Er factor: 
-# Capturing the threshold values
-keys_images_gray = list(images_gray.keys())
-values_images_gray = list(images_gray.values())
-thresholded_images = {}
-N1 = 2
-N2 = 2
-# Nse que pollas poner en el Er este dice que es para hacer el control del threshold
-Er = 0.01
-for i in range(len(values_images_gray)):
-    image = values_images_gray[i]
-    th_image = np.copy(image)
-    max_Im = image.max()
-    min_Im = image.min()
-    Tc0 = max_Im/N1 + min_Im/N2
+
+th_wbc_all = compute_threshold_wbc(images_gray)
     
-    if Tc0 > max_list[i]:
-        if np.abs(Tc0-min_list[i])< Er :
-            Estimated_th = (Tc0+min_list[i])/2
-        elif (np.abs(Tc0-min_list[i])>Er) and (Tc0>min_list[i]):
-            Estimated_th = (Tc0+min_list[i]+Er)/2
-        elif (np.abs(Tc0-min_list[i])>Er) and (Tc0<min_list[i]):
-            Estimated_th = (Tc0+min_list[i]-Er)/2
-    else:
-        None
+
+
+
+#%%
+from scipy.signal import argrelextrema
+
+
+def histogram_image_zoomed2(image, plot=True):
+    size = 255
+    hist = ndimage.histogram(image, 0, 1, size)
+    bins = np.linspace(0, 1, size)
+    if plot:
+        plt.plot(bins[np.uint8(size*0.5):size], hist[np.uint8(size*0.5):size])
+        plt.title('Histogram zoomed '+ str(filename))
+        plt.xlabel('Pixel Value')
+        plt.ylabel('Frequency')
+
+        plt.tight_layout()
+        plt.show()
+
+    return hist
+    
+
+for filename, image in images_gray.items():
+    
+    hist = histogram_image_zoomed2(image, plot = True)
+    
+
+    local_maxima_indices = argrelextrema(hist, np.greater)[0]
+    
+    # Sort the indices based on their corresponding intensity values
+    sorted_indices = sorted(local_maxima_indices, key=lambda x: hist[x], reverse=True)
+    
+    # Get the indices of the two greatest local maxima
+    greatest_maxima_indices = sorted_indices[:2]
+    
+    # Scale the indices to the range of 0-1
+    scaled_indices = [idx / 255 for idx in greatest_maxima_indices]
+    
+    # Compute the mean index of the two greatest maxima, scaled to 0-1
+    mean_index_of_greatest_maxima = np.mean(scaled_indices)
+    
+    second_maxima_index = sorted_indices[1]
+    # Scale the index of the second greatest maxima to the range of 0-1
+    scaled_second_maxima_index = second_maxima_index / 255
+    
+    # Compute the mean index of the second greatest maxima and 0.5, scaled to 0-1
+    mean_index_of_second_maxima_and_half = np.mean([scaled_second_maxima_index, 0.5])
+    
+    print("Mean index of the second greatest maxima and 0.5 (scaled to 0-1):", mean_index_of_second_maxima_and_half)
+    
+    print("Mean index of the two greatest maxima (scaled to 0-1):", mean_index_of_greatest_maxima)
+    
+    
     w = image.shape[0]
     h = image.shape[1]
+    im_new = image.copy()
     for y in range(h):
         for x in range(w):
-            if image[x,y] < Estimated_th:
-                th_image[x,y] = min_Im
-            else: 
-                th_image[x,y] = image[x,y]
-    im_filled = ndimage.binary_fill_holes(th_image) # this fills all the holes of the nuclei segmented image
-    im_cleaned = morphology.opening(im_filled, morphology.square(7)) # this removes all the trash detected around the nucleus
-    thresholded_images[keys_images_gray[i]] = im_cleaned
+            pix = image[x,y]
+            if pix < mean_index_of_greatest_maxima:
+                i = 0
+            else:
+                i = 1      
+            im_new[x,y] = i
     
- # Plotting the 1st thresholded image
-   
-im_001_thresholded = thresholded_images["001.bmp"]
-plt.imshow(im_001_thresholded, cmap= 'binary')
-plt.title('Thresholded image')
-plt.axis('off')   
-plt.show()
-
-# %% 
-
-# =============================================================================
-# Threshold estimation for WBCs segmentation
-# =============================================================================
-
-N1 = 2
-N2 = 2
-for i in range(len(values_images_gray)):
-    image = values_images_gray[i]
-    th_image = np.copy(image)
-    max_Im = image.max()
-    min_Im = image.min()
-    Tc0 = max_Im/N1 + min_Im/N2
-    for u in range(int(min_list[i]-max_list[i]/Er)):
+    
+    plt.subplot(121)
+    plt.imshow(image, cmap = "gray")
+    plt.title("Image: " + str(filename))
+    plt.axis("off")
+    plt.subplot(122)
+    plt.imshow(im_new, cmap = "gray")
+    plt.title("WBC just fillED")
+    plt.axis("off")
+    plt.show()
         
-                    
+
+  # %%
+seg_cytoplasm_dict={}
+for filename, image in th_wbc_all.items():
+
+    M,N = image.shape
+    im_new = image.copy()
+    for x in range(0,M):
+        for y in range(0,N):
+            if th_nucleus_all[filename][x,y] !=1:
+                im_new[x,y] = 0.7
+    seg_cytoplasm_dict[filename]=im_new
+    plt.imshow(im_new, cmap = "gray")
+    plt.show()               
+# %% Apply SLIC and try to obtain something
+from skimage import img_as_float, filters, morphology
+from skimage.segmentation import slic, mark_boundaries
+from skimage.color import label2rgb
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.cluster import KMeans
+n_segments= 100
+compactness=100
+min_size = 1000
+for filename, image in seg_cytoplasm_dict.items():
+    image = img_as_float(image)
+    image_smoothed = filters.gaussian(image, sigma=1)
+    segments_slic = slic(image_smoothed, n_segments=n_segments, compactness=compactness, start_label=1)
+    segments_slic = morphology.remove_small_objects(segments_slic, min_size=min_size)
+    image_slic = mark_boundaries(image, segments_slic)
     
+    edges = filters.sobel(image_smoothed)
+    contours = measure.find_contours(edges, level=0.1)
+    fig, ax = plt.subplots()
+    ax.imshow(image, cmap=plt.cm.gray)
+    for contour in contours:
+        ax.plot(contour[:, 1], contour[:, 0], linewidth=2, color='red')
+    
+    ax.axis('image')
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title('Detected Contours')
+    plt.show()
+
+    # Display the superpixels
+    fig, ax = plt.subplots(1, 2, figsize=(10, 10))
+    ax[0].imshow(image_slic)
+    ax[0].axis('off')
+    ax[0].set_title('Superpixels through SLIC')
+    ax[1].imshow(image)
+    ax[1].axis('off')
+    ax[1].set_title('original image')
+
+    # Compute the mean color of each superpixel
+    regions = label2rgb(segments_slic, image, kind='avg')
+    superpixels = np.reshape(regions, (-1, 3))
+    
+    # Apply K-means clustering
+    kmeans = KMeans(n_clusters=3, random_state=0).fit(superpixels)
+    labels = kmeans.labels_.reshape(regions.shape[:2])
+
+    # Display the K-means segmentation
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    ax.imshow(label2rgb(labels, image, kind='avg'))
+    ax.axis('off')
+    ax.set_title('Segmentation based on K-means')
+    plt.show()
+
+# %% Taking all the cytoplasm
+seg_cytoplasm_dict={}
+# def segmented_cytoplasm(dict_images_seg, dict_images):
+#     '''Funtion used to do a thresholding on the images coming from the SLIC 
+#     algorithm to obtain the cytoplasm'''
+#     for i, (key,value) in enumerate(dict_images.items()):
+#             image_original = images[key]
+#             image = dict_images_seg[key]
+#             new_image = np.copy(image)
+#             w = new_image.shape[0]
+#             h = new_image.shape[1]
+#             for x in range(w):
+#                 for y in range(h):
+#                     pixel = new_image[x,y]
+#                     if pixel== 2 or pixel==3: 
+#                         new_pixel= 1
+#                     else: 
+#                         new_pixel= 0
+#                     new_image[x,y] = new_pixel
+#             seg_cytoplasm_dict[key] = new_image
+#             fig, ax = plt.subplots(1,2,figsize=(10,10))
+#             ax[0].imshow(image_original)
+#             ax[0].axis('off')
+#             ax[0].set_title('Image original')
+#             ax[1].imshow(new_image, cmap='gray')
+#             ax[1].axis('off')
+#             ax[1].set_title('Segmented cytoplasm bebe')
+#             plt.show()
+#     return
+
+# segmented_cytoplasm(dict_slic_images, images)
+
+# %%
+import numpy as np
+import matplotlib.pyplot as plt
+from skimage import io, img_as_float, color
+from skimage.filters import sobel, threshold_otsu
+from skimage.segmentation import watershed
+from skimage.feature import peak_local_max
+from scipy import ndimage as ndi
+from skimage.feature import corner_peaks
 
 
 
 
+for filename, image in seg_cytoplasm_dict.items():
+    
+    image_smoothed = filters.gaussian(image, sigma=1.0)
+    edges = filters.sobel(image_smoothed)
+    contours = measure.find_contours(edges, level=0.1)
+    contour_image = np.zeros_like(image, dtype=np.int32)
+    for contour in contours:
+        contour = contour.astype(int)  # Convertir a entero
+        contour_image[contour[:, 0], contour[:, 1]] = 1
+
+    distance = ndi.distance_transform_edt(contour_image)
+    local_maxi = peak_local_max(distance, indices=False, footprint=np.ones((3, 3)), labels=contour_image)
+    markers, _ = ndi.label(local_maxi)
+    labels = watershed(-distance, markers, mask=contour_image)
+
+    corners = corner_peaks(image, min_distance=5)
+    for corner in corners:
+        markers[corner[0], corner[1]] = len(np.unique(markers)) + 1
+        
+    labels = watershed(-distance, markers, mask=contour_image)
+    
+    fig, axes = plt.subplots(1, 3, figsize=(20, 7))
+    ax = axes.ravel()
+    ax[0].imshow(image, cmap=plt.cm.gray)
+    ax[0].set_title('Original Image')
+    ax[0].axis('off')
+    ax[1].imshow(contour_image, cmap=plt.cm.gray)
+    ax[1].set_title('Contours')
+    ax[1].axis('off')
+    ax[2].imshow(color.label2rgb(labels, image=image))
+    ax[2].set_title('Watershed Algorithm Image')
+    ax[2].axis('off')
+    plt.show()
+    plt.tight_layout()
 
 
+#%%
